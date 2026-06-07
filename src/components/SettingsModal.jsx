@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import styles from './SettingsModal.module.css'
 
 const LANGUAGES = [
@@ -13,6 +13,8 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
   const [language, setLanguage] = useState('auto')
   const [temperature, setTemperature] = useState(0.7)
   const [replyCount, setReplyCount] = useState(5)
+  const [langOpen, setLangOpen] = useState(false)
+  const dropdownRef = useRef(null)
 
   useEffect(() => {
     if (isOpen) {
@@ -20,6 +22,7 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
       setLanguage(currentSettings.language || 'auto')
       setTemperature(currentSettings.temperature ?? 0.7)
       setReplyCount(currentSettings.replyCount ?? 5)
+      setLangOpen(false)
     }
   }, [isOpen, currentSettings])
 
@@ -31,6 +34,17 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
     document.addEventListener('keydown', handleEsc)
     return () => document.removeEventListener('keydown', handleEsc)
   }, [isOpen, onClose])
+
+  useEffect(() => {
+    if (!langOpen) return
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setLangOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [langOpen])
 
   function handleSave() {
     onSave({
@@ -105,24 +119,39 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
           </div>
         </div>
 
-        <div className={styles.divider} />
-
         {/* Language */}
         <div className={styles.section}>
           <label className={styles.label}>Bahasa Output</label>
-          <div className={styles.selectWrap}>
-            <select
-              className={styles.select}
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+          <div className={styles.customSelect} ref={dropdownRef}>
+            <button
+              type="button"
+              className={`${styles.selectTrigger} ${langOpen ? styles.selectOpen : ''}`}
+              onClick={() => setLangOpen(!langOpen)}
             >
-              {LANGUAGES.map((lang) => (
-                <option key={lang.value} value={lang.value}>{lang.label}</option>
-              ))}
-            </select>
-            <svg className={styles.selectArrow} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="6 9 12 15 18 9" />
-            </svg>
+              <span>{LANGUAGES.find((l) => l.value === language)?.label}</span>
+              <svg className={styles.selectChevron} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {langOpen && (
+              <div className={styles.selectDropdown}>
+                {LANGUAGES.map((lang) => (
+                  <button
+                    key={lang.value}
+                    type="button"
+                    className={`${styles.selectOption} ${language === lang.value ? styles.optionSelected : ''}`}
+                    onClick={() => { setLanguage(lang.value); setLangOpen(false) }}
+                  >
+                    <span>{lang.label}</span>
+                    {language === lang.value && (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
           <p className={styles.hint}>Bahasa yang digunakan AI untuk menulis reply</p>
         </div>
@@ -137,7 +166,7 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
               disabled={replyCount <= 2}
               aria-label="Kurangi jumlah reply"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
             </button>
@@ -148,7 +177,7 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
               disabled={replyCount >= 10}
               aria-label="Tambah jumlah reply"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                 <line x1="12" y1="5" x2="12" y2="19" />
                 <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
@@ -163,15 +192,23 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
             <label className={styles.label}>Temperature</label>
             <span className={styles.tempValue}>{temperature.toFixed(1)}</span>
           </div>
-          <input
-            type="range"
-            className={styles.slider}
-            min="0"
-            max="1"
-            step="0.1"
-            value={temperature}
-            onChange={(e) => setTemperature(parseFloat(e.target.value))}
-          />
+          <div className={styles.sliderWrap}>
+            <div className={styles.sliderTrack}>
+              <div
+                className={styles.sliderFill}
+                style={{ width: `${temperature * 100}%` }}
+              />
+            </div>
+            <input
+              type="range"
+              className={styles.slider}
+              min="0"
+              max="1"
+              step="0.1"
+              value={temperature}
+              onChange={(e) => setTemperature(parseFloat(e.target.value))}
+            />
+          </div>
           <div className={styles.sliderLabels}>
             <span>Presisi</span>
             <span>Kreatif</span>

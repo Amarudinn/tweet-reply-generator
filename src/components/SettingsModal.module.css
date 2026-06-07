@@ -100,12 +100,6 @@
   margin-bottom: 20px;
 }
 
-.divider {
-  height: 1px;
-  background: var(--border-card);
-  margin: 24px 0;
-}
-
 .label {
   display: block;
   font-size: 0.82rem;
@@ -139,7 +133,7 @@
   width: 100%;
   padding: 12px 48px 12px 16px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-card);
+  border: 1.5px solid var(--border-card);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 0.9rem;
@@ -239,53 +233,111 @@
   text-decoration: underline;
 }
 
-/* ── Select (Language) ── */
-.selectWrap {
+/* ── Custom Dropdown (Language) ── */
+.customSelect {
   position: relative;
-  display: inline-flex;
   width: 100%;
 }
 
-.select {
+.selectTrigger {
   width: 100%;
-  padding: 11px 40px 11px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
   background: var(--bg-primary);
-  border: 1px solid var(--border-card);
+  border: 1.5px solid var(--border-card);
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: 0.88rem;
   font-family: var(--font);
   font-weight: 500;
-  outline: none;
   cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
+  outline: none;
   transition:
     border-color var(--duration-normal) var(--ease-out),
-    box-shadow var(--duration-normal) var(--ease-out);
+    box-shadow var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out);
 }
 
-.select:hover {
+.selectTrigger:hover {
   border-color: var(--border-card-hover);
+  background: var(--bg-elevated);
 }
 
-.select:focus {
+.selectOpen {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-.select option {
-  background: var(--bg-secondary);
+.selectChevron {
+  color: var(--text-muted);
+  transition: transform var(--duration-normal) var(--ease-out);
+  flex-shrink: 0;
+}
+
+.selectOpen .selectChevron {
+  transform: rotate(180deg);
+  color: var(--accent-hover);
+}
+
+.selectDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  z-index: 10;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  animation: dropdownIn 200ms var(--ease-out);
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.selectOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  font-family: var(--font);
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.selectOption:hover {
+  background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
-.selectArrow {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: var(--text-muted);
-  pointer-events: none;
+.optionSelected {
+  color: var(--accent-hover);
+  background: var(--bg-tertiary);
+  font-weight: 600;
+}
+
+.optionSelected:hover {
+  background: var(--bg-tertiary);
 }
 
 /* ── Counter (Reply Count) ── */
@@ -314,9 +366,8 @@
     color var(--duration-fast) var(--ease-out);
 }
 
-.counterBtn:hover:not(:disabled) {
-  background: var(--bg-tertiary);
-  color: var(--text-primary);
+.counterBtn:active:not(:disabled) {
+  transform: scale(0.95);
 }
 
 .counterBtn:disabled {
@@ -341,7 +392,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
 .labelRow .label {
@@ -349,25 +400,51 @@
 }
 
 .tempValue {
-  font-size: 0.88rem;
+  font-size: 0.92rem;
   font-weight: 700;
   color: var(--accent-hover);
   font-variant-numeric: tabular-nums;
   background: var(--accent-dim);
-  padding: 2px 10px;
-  border-radius: var(--radius-xs);
+  padding: 3px 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(79, 70, 229, 0.2);
+}
+
+.sliderWrap {
+  position: relative;
+  height: 28px;
+  display: flex;
+  align-items: center;
+}
+
+.sliderTrack {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.sliderFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%);
+  border-radius: 3px;
+  transition: width 80ms ease-out;
 }
 
 .slider {
+  position: relative;
   width: 100%;
-  height: 6px;
+  height: 28px;
   appearance: none;
   -webkit-appearance: none;
-  background: var(--bg-tertiary);
-  border-radius: 3px;
+  background: transparent;
   outline: none;
   cursor: pointer;
-  margin: 4px 0;
+  z-index: 1;
 }
 
 .slider::-webkit-slider-thumb {
@@ -386,24 +463,29 @@
 }
 
 .slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
   box-shadow: 0 2px 12px rgba(79, 70, 229, 0.45);
 }
 
 .slider::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   background: var(--accent);
-  border: 2px solid var(--bg-secondary);
+  border: 3px solid var(--bg-secondary);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.3);
+  box-shadow: 0 2px 8px rgba(79, 70, 229, 0.35);
+}
+
+.slider::-moz-range-track {
+  background: transparent;
+  border: none;
+  height: 6px;
 }
 
 .sliderLabels {
   display: flex;
   justify-content: space-between;
-  margin-top: 6px;
+  margin-top: 8px;
   font-size: 0.72rem;
   color: var(--text-muted);
   font-weight: 500;
@@ -415,8 +497,7 @@
   justify-content: flex-end;
   gap: 10px;
   margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--border-card);
+  padding-top: 0;
 }
 
 .cancelBtn,
@@ -513,9 +594,14 @@
     font-size: 0.78rem;
   }
 
-  .select {
+  .selectTrigger {
     font-size: 0.85rem;
-    padding: 10px 36px 10px 14px;
+    padding: 10px 14px;
+  }
+
+  .selectOption {
+    font-size: 0.82rem;
+    padding: 9px 10px;
   }
 
   .counterBtn {
@@ -530,7 +616,7 @@
 
   .actions {
     margin-top: 22px;
-    padding-top: 16px;
+    padding-top: 0;
   }
 
   .cancelBtn,

@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import styles from './App.module.css';
 import { getApiKey, saveApiKey, getLanguage, saveLanguage, getTemperature, saveTemperature, getReplyCount, saveReplyCount, generateReply, parseResponse } from './api';
 import ReplyCard from './components/ReplyCard';
@@ -13,6 +13,14 @@ const GEAR_ICON = (
   </svg>
 );
 
+const DOWNLOAD_ICON = (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+    <polyline points="7 10 12 15 17 10" />
+    <line x1="12" y1="15" x2="12" y2="3" />
+  </svg>
+);
+
 export default function App() {
   const [tweet, setTweet] = useState('');
   const [state, setState] = useState('empty'); // empty | loading | error | results
@@ -20,11 +28,31 @@ export default function App() {
   const [error, setError] = useState('');
   const [showSettings, setShowSettings] = useState(() => !getApiKey());
   const [toast, setToast] = useState({ message: '', visible: false });
+  const [installPrompt, setInstallPrompt] = useState(null);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
 
   const showToast = useCallback((message) => {
     setToast({ message, visible: true });
     setTimeout(() => setToast((t) => ({ ...t, visible: false })), 2200);
   }, []);
+
+  const handleInstall = useCallback(async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    const { outcome } = await installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      showToast('App installed successfully!');
+    }
+    setInstallPrompt(null);
+  }, [installPrompt, showToast]);
 
   const handleGenerate = useCallback(async () => {
     const text = tweet.trim();
@@ -88,13 +116,25 @@ export default function App() {
       {/* Header */}
       <header className={styles.header}>
         <h1 className={styles.title}>Tweet Reply Generator</h1>
-        <button
-          className={styles.settingsBtn}
-          onClick={() => setShowSettings(true)}
-          aria-label="Settings"
-        >
-          {GEAR_ICON}
-        </button>
+        <div className={styles.headerActions}>
+          {installPrompt && (
+            <button
+              className={styles.downloadBtn}
+              onClick={handleInstall}
+              aria-label="Install App"
+              title="Install App"
+            >
+              {DOWNLOAD_ICON}
+            </button>
+          )}
+          <button
+            className={styles.settingsBtn}
+            onClick={() => setShowSettings(true)}
+            aria-label="Settings"
+          >
+            {GEAR_ICON}
+          </button>
+        </div>
       </header>
 
       {/* Input */}
@@ -150,16 +190,16 @@ export default function App() {
             {state === 'loading' ? 'Generating...' : 'Generate Reply'}
           </button>
         </div>
-        <div className={styles.shortcutHint}>Ctrl + Enter to generate</div>
+
       </section>
 
       {/* Empty State */}
       {state === 'empty' && (
         <div className={styles.emptyState}>
           <p className={styles.emptyText}>
-            Paste a tweet above to generate
+            Paste a tweet, and the AI will
             <br />
-            5 reply options with AI
+            craft the best replies for you
           </p>
         </div>
       )}
