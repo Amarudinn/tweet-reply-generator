@@ -1,18 +1,20 @@
 # Tweet Reply Generator
 
-Generate engaging tweet replies with AI. Paste a tweet, get 5 reply options instantly.
+Generate engaging tweet replies with AI. Paste a tweet, get multiple reply options instantly.
 
-Powered by DeepSeek API with a custom system prompt that supports Indonesian, English, and Japanese replies.
+Powered by DeepSeek API with a custom system prompt that supports Indonesian, English, and Japanese replies. Installable as a Progressive Web App (PWA).
 
 ## Features
 
-- 🚀 **5 Reply Options** — AI generates 5 unique reply angles for every tweet
-- 🎯 **Best Pick Recommendation** — AI picks the best reply with reasoning
-- 📊 **Confidence Score** — Shows how confident the AI is about the topic (1-10)
-- 📋 **One-Click Copy** — Copy any reply to clipboard instantly
-- 📱 **Mobile Responsive** — Works on desktop, tablet, and mobile
-- 🌏 **Multi-language** — Supports Indonesian, English, and Japanese replies
-- 🔒 **Local Storage** — API key saved locally in your browser
+- **Multiple Reply Options** - AI generates unique reply angles for every tweet (configurable 2-10)
+- **Best Pick Recommendation** - AI picks the best reply with reasoning
+- **Confidence Score** - Shows how confident the AI is about the topic (1-10)
+- **One-Click Copy** - Copy any reply to clipboard instantly
+- **Mobile Responsive** - Works on desktop, tablet, and mobile
+- **Multi-language** - Supports Indonesian, English, and Japanese replies
+- **Local Storage** - API key saved locally in your browser
+- **PWA Support** - Install the app on your device for offline access
+- **Custom Settings** - Adjustable language, temperature, and reply count
 
 ## Tech Stack
 
@@ -20,6 +22,7 @@ Powered by DeepSeek API with a custom system prompt that supports Indonesian, En
 - **CSS Modules** (vanilla CSS, no frameworks)
 - **DeepSeek API** (`deepseek-chat` model)
 - **Inter** font from Google Fonts
+- **PWA** with Service Worker
 
 ## Prerequisites
 
@@ -31,8 +34,8 @@ Powered by DeepSeek API with a custom system prompt that supports Indonesian, En
 1. **Clone the repository**
 
    ```bash
-   git clone https://github.com/Amarudinn/tea-sepoliaini.git
-   cd tea-sepoliaini
+   git clone https://github.com/Amarudinn/tweet-reply-generator.git
+   cd tweet-reply-generator
    ```
 
 2. **Install dependencies**
@@ -61,7 +64,7 @@ Powered by DeepSeek API with a custom system prompt that supports Indonesian, En
 
 1. Paste a tweet into the text area (or click the **Paste** button)
 2. Click **Generate Reply** (or press `Ctrl + Enter`)
-3. Wait for the AI to generate 5 reply options
+3. Wait for the AI to generate reply options
 4. Click the copy icon on any reply to copy it to clipboard
 5. Paste it as your reply on X/Twitter
 
@@ -86,8 +89,16 @@ reply-tweet/
 ├── index.html                  # HTML entry point
 ├── package.json
 ├── vite.config.js
+├── public/
+│   ├── manifest.json           # PWA manifest
+│   ├── sw.js                   # Service Worker
+│   ├── 16x16.png               # Favicon 16x16
+│   ├── 32x32.png               # Favicon 32x32
+│   ├── 180x180.png             # Apple Touch Icon
+│   ├── 192x192.png             # PWA icon
+│   └── 512x512.png             # PWA splash icon
 └── src/
-    ├── main.jsx                # React entry
+    ├── main.jsx                # React entry + SW registration
     ├── index.css               # Design system (colors, fonts, variables)
     ├── App.jsx                 # Main app component
     ├── App.module.css          # App styles
@@ -95,7 +106,7 @@ reply-tweet/
     └── components/
         ├── ReplyCard.jsx       # Individual reply card
         ├── ReplyCard.module.css
-        ├── MetaBar.jsx         # Confidence & angle display
+        ├── MetaBar.jsx         # Confidence and angle display
         ├── MetaBar.module.css
         ├── SettingsModal.jsx   # API key settings modal
         ├── SettingsModal.module.css
@@ -116,12 +127,12 @@ export const CONFIG = {
 };
 ```
 
-| Parameter     | Description                              | Default         |
-|---------------|------------------------------------------|-----------------|
-| `API_URL`     | DeepSeek API endpoint                    | `https://api.deepseek.com/v1/chat/completions` |
-| `MODEL`       | Model name                               | `deepseek-chat` |
-| `TEMPERATURE` | Creativity level (0 = precise, 1 = creative) | `0.7`       |
-| `MAX_TOKENS`  | Maximum response length                  | `2048`          |
+| Parameter     | Description                                   | Default                                        |
+|---------------|-----------------------------------------------|------------------------------------------------|
+| `API_URL`     | DeepSeek API endpoint                         | `https://api.deepseek.com/v1/chat/completions` |
+| `MODEL`       | Model name                                    | `deepseek-chat`                                |
+| `TEMPERATURE` | Creativity level (0 = precise, 1 = creative)  | `0.7`                                          |
+| `MAX_TOKENS`  | Maximum response length                       | `2048`                                         |
 
 ## License
 
