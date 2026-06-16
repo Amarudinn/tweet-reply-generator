@@ -516,6 +516,43 @@
 /* ═══════════════════════════════════════════
    X PROFILE LINK
    ═══════════════════════════════════════════ */
+/* ── Edit Prompt Button (above X link) ── */
+.editPromptBtn {
+  position: fixed;
+  bottom: 78px;
+  right: 24px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  border-radius: 50%;
+  color: var(--text-muted);
+  cursor: pointer;
+  z-index: 50;
+  transition:
+    background var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    color var(--duration-normal) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.editPromptBtn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-card-hover);
+  color: var(--text-primary);
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.editPromptBtn:active {
+  transform: scale(0.95);
+}
+
+/* ── X Profile Link ── */
 .xLink {
   position: fixed;
   bottom: 24px;
@@ -549,6 +586,206 @@
 
 .xLink:active {
   transform: scale(0.95);
+}
+
+/* ── System Prompt Editor Modal ── */
+.promptOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+  animation: promptOverlayIn 250ms var(--ease-out) forwards;
+}
+
+@keyframes promptOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.promptModal {
+  width: 100%;
+  max-width: 680px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius);
+  box-shadow:
+    0 24px 48px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.03);
+  animation: promptModalIn 300ms var(--ease-out) forwards;
+}
+
+@keyframes promptModalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.promptHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 0;
+  flex-shrink: 0;
+}
+
+.promptTitle {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.promptCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-xs);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+
+.promptCloseBtn:hover {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.promptTextarea {
+  flex: 1;
+  min-height: 340px;
+  margin: 16px 24px;
+  padding: 16px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  line-height: 1.65;
+  outline: none;
+  resize: vertical;
+  transition:
+    border-color var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out);
+}
+
+.promptTextarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 0 16px var(--accent-dim);
+}
+
+.promptTextarea::-webkit-scrollbar {
+  width: 4px;
+}
+
+.promptTextarea::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.promptTextarea::-webkit-scrollbar-thumb {
+  background: var(--border-card);
+  border-radius: 2px;
+}
+
+.promptActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px 20px;
+  flex-shrink: 0;
+}
+
+.promptActionsRight {
+  display: flex;
+  gap: 10px;
+}
+
+.promptResetBtn {
+  padding: 9px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: var(--font);
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  cursor: pointer;
+  transition:
+    background var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.promptResetBtn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.promptResetBtn:active {
+  transform: scale(0.96);
+}
+
+.promptCancelBtn,
+.promptSaveBtn {
+  padding: 9px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition:
+    transform var(--duration-fast) var(--ease-spring),
+    background var(--duration-normal) var(--ease-out),
+    border-color var(--duration-normal) var(--ease-out);
+}
+
+.promptCancelBtn:active,
+.promptSaveBtn:active {
+  transform: scale(0.96);
+}
+
+.promptCancelBtn {
+  background: transparent;
+  border: 1px solid var(--border-card);
+  color: var(--text-secondary);
+}
+
+.promptCancelBtn:hover {
+  border-color: var(--border-card-hover);
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.promptSaveBtn {
+  background: var(--accent);
+  border: 1px solid transparent;
+  color: #fff;
+}
+
+.promptSaveBtn:hover {
+  background: var(--accent-hover);
+  box-shadow: 0 4px 16px var(--accent-glow);
 }
 
 /* ═══════════════════════════════════════════
@@ -707,6 +944,56 @@
 
   .recoText {
     font-size: 0.82rem;
+  }
+
+  .editPromptBtn,
+  .xLink {
+    width: 40px;
+    height: 40px;
+    right: 16px;
+  }
+
+  .editPromptBtn {
+    bottom: 68px;
+  }
+
+  .xLink {
+    bottom: 16px;
+  }
+
+  .promptOverlay {
+    padding: 12px;
+  }
+
+  .promptModal {
+    max-height: 90vh;
+  }
+
+  .promptHeader {
+    padding: 16px 16px 0;
+  }
+
+  .promptTextarea {
+    margin: 12px 16px;
+    min-height: 260px;
+    font-size: 0.75rem;
+  }
+
+  .promptActions {
+    padding: 0 16px 16px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .promptResetBtn {
+    font-size: 0.75rem;
+    padding: 8px 12px;
+  }
+
+  .promptCancelBtn,
+  .promptSaveBtn {
+    font-size: 0.78rem;
+    padding: 8px 16px;
   }
 }
 

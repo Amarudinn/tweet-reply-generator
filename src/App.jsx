@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import styles from './App.module.css';
-import { getApiKey, saveApiKey, getLanguage, saveLanguage, getTemperature, saveTemperature, getReplyCount, saveReplyCount, getTheme, saveTheme, getSelectedProviderId, saveSelectedProviderId, getModelForProvider, saveModelForProvider, generateReply, parseResponse } from './api';
+import { getApiKey, saveApiKey, getLanguage, saveLanguage, getTemperature, saveTemperature, getReplyCount, saveReplyCount, getTheme, saveTheme, getSelectedProviderId, saveSelectedProviderId, getModelForProvider, saveModelForProvider, getCustomSystemPrompt, saveCustomSystemPrompt, resetSystemPrompt, SYSTEM_PROMPT, generateReply, parseResponse } from './api';
 import { getProvider } from './providers/registry';
 import ReplyCard from './components/ReplyCard';
 import MetaBar from './components/MetaBar';
@@ -30,6 +30,8 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(() => !getApiKey());
   const [toast, setToast] = useState({ message: '', visible: false });
   const [installPrompt, setInstallPrompt] = useState(null);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
+  const [promptDraft, setPromptDraft] = useState('');
 
   useEffect(() => {
     const handler = (e) => {
@@ -309,6 +311,22 @@ export default function App() {
       {/* Toast */}
       <Toast message={toast.message} visible={toast.visible} />
 
+      {/* Edit Prompt Button */}
+      <button
+        className={styles.editPromptBtn}
+        onClick={() => {
+          setPromptDraft(getCustomSystemPrompt() || SYSTEM_PROMPT);
+          setShowPromptEditor(true);
+        }}
+        aria-label="Edit System Prompt"
+        title="Edit System Prompt"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+        </svg>
+      </button>
+
       {/* X Profile Link */}
       <a
         href="https://x.com/m_amarudinn2"
@@ -321,6 +339,63 @@ export default function App() {
           <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
         </svg>
       </a>
+
+      {/* System Prompt Editor Modal */}
+      {showPromptEditor && (
+        <div className={styles.promptOverlay} onClick={() => setShowPromptEditor(false)}>
+          <div className={styles.promptModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.promptHeader}>
+              <h2 className={styles.promptTitle}>System Prompt</h2>
+              <button
+                className={styles.promptCloseBtn}
+                onClick={() => setShowPromptEditor(false)}
+                aria-label="Close"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <textarea
+              className={styles.promptTextarea}
+              value={promptDraft}
+              onChange={(e) => setPromptDraft(e.target.value)}
+              spellCheck={false}
+            />
+            <div className={styles.promptActions}>
+              <button
+                className={styles.promptResetBtn}
+                onClick={() => {
+                  resetSystemPrompt();
+                  setPromptDraft(SYSTEM_PROMPT);
+                  showToast('System prompt direset ke default');
+                }}
+              >
+                Reset Default
+              </button>
+              <div className={styles.promptActionsRight}>
+                <button className={styles.promptCancelBtn} onClick={() => setShowPromptEditor(false)}>Cancel</button>
+                <button
+                  className={styles.promptSaveBtn}
+                  onClick={() => {
+                    const trimmed = promptDraft.trim();
+                    if (trimmed === SYSTEM_PROMPT || trimmed === '') {
+                      resetSystemPrompt();
+                    } else {
+                      saveCustomSystemPrompt(trimmed);
+                    }
+                    setShowPromptEditor(false);
+                    showToast('System prompt disimpan');
+                  }}
+                >
+                  Save
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

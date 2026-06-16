@@ -201,7 +201,7 @@ import { getProvider, getDefaultProvider } from './providers/registry.js';
 
 export const CONFIG = {
   TEMPERATURE: 0.7,
-  MAX_TOKENS: 2048,
+  MAX_TOKENS: 8192,
 };
 
 // ── Provider Selection ──
@@ -246,6 +246,24 @@ export function getModelForProvider(providerId) {
 export function saveModelForProvider(model, providerId) {
   const id = providerId || getSelectedProviderId();
   localStorage.setItem(`model_${id}`, model);
+}
+
+// ── Custom System Prompt ──
+
+export function getCustomSystemPrompt() {
+  return localStorage.getItem('custom_system_prompt') || '';
+}
+
+export function saveCustomSystemPrompt(prompt) {
+  localStorage.setItem('custom_system_prompt', prompt);
+}
+
+export function resetSystemPrompt() {
+  localStorage.removeItem('custom_system_prompt');
+}
+
+export function getActiveSystemPrompt() {
+  return getCustomSystemPrompt() || SYSTEM_PROMPT;
 }
 
 export function getLanguage() {
@@ -311,6 +329,26 @@ Gunakan tone berbobot yang menambah perspektif baru.
 - Contoh vibe: "Yang menarik bukan fiturnya, tapi 70% user mereka dari tier 2-3. Distribusi ngalahin produk."`,
 };
 
+const CORE_RULES = (replyCount) => `\n\n---\n[ATURAN WAJIB — TIDAK BOLEH DILANGGAR]
+1. FORMAT OUTPUT harus mengikuti struktur ini:
+   ### 1. Confidence Check
+   - Skor: [angka]/10
+   - Alasan: [satu kalimat]
+   ### 2. Angle
+   [Supportif / Disruptor] + alasan singkat.
+   ### 3. Opsi Reply
+   (tulis TEPAT ${replyCount} reply sebagai numbered list: 1. ... 2. ... dst)
+   ### 4. Rekomendasi
+   - Pilih 1 opsi terbaik + alasan singkat.
+   - Sebutkan teknik: Social Proof, Curiosity Gap, atau Authority.
+
+2. WAJIB tulis TEPAT ${replyCount} opsi reply. Tidak boleh kurang, tidak boleh lebih.
+3. Setiap reply MAKSIMAL 280 karakter. Hitung sebelum tulis. Jika lebih, tulis ulang lebih pendek.
+4. Teks reply harus PLAIN TEXT murni. DILARANG pakai **, *, #, ##, ###, ---, em-dash (\u2014), atau formatting markdown apapun di dalam teks reply.
+5. Setiap opsi reply langsung tulis teksnya. JANGAN tulis label "Opsi 1:", "Reply 1:", dll. Cukup nomor dan teks.
+6. Setiap opsi harus punya angle yang BERBEDA. Jangan variasi dari ide yang sama.
+7. JANGAN mengarang data, statistik, atau fakta yang tidak ada di tweet asli.`;
+
 export async function generateReply(tweetText, apiKey, options = {}) {
   const { language = 'auto', temperature = 0.7, replyCount = 5, theme = 'santai', providerId, model } = options;
 
@@ -322,10 +360,6 @@ export async function generateReply(tweetText, apiKey, options = {}) {
     overrides.push(`Tulis SEMUA reply dalam bahasa: ${langMap[language]}. Apapun bahasa tweet aslinya, output HARUS dalam ${langMap[language]}.`);
   }
 
-  if (replyCount !== 5) {
-    overrides.push(`Tulis ${replyCount} opsi reply (bukan 5). Sesuaikan jumlah opsi reply menjadi ${replyCount}.`);
-  }
-
   if (theme && THEME_OVERRIDES[theme]) {
     overrides.push(THEME_OVERRIDES[theme]);
   }
@@ -333,6 +367,9 @@ export async function generateReply(tweetText, apiKey, options = {}) {
   if (overrides.length > 0) {
     userMessage += '\n\n---\n[OVERRIDE SETTINGS]\n' + overrides.join('\n');
   }
+
+  // Core rules — always appended, enforced regardless of system prompt
+  userMessage += CORE_RULES(replyCount);
 
   // Delegate to the selected provider
   const provider = getProvider(providerId || getSelectedProviderId());
@@ -342,7 +379,7 @@ export async function generateReply(tweetText, apiKey, options = {}) {
     temperature,
     maxTokens: CONFIG.MAX_TOKENS,
     model: selectedModel,
-    systemPrompt: SYSTEM_PROMPT,
+    systemPrompt: getActiveSystemPrompt(),
     userMessage,
   });
 }
@@ -357,92 +394,62 @@ export function parseResponse(rawText) {
   };
 
   try {
-    // Confidence score
-    const scoreMatch = rawText.match(/[Ss]kor[:\s]*(\d+)\s*\/\s*10/);
+    // Confidence score — support multiple formats
+    const scoreMatch = rawText.match(/[Ss]kor[:\s]*(\d+)\s*\/\s*10/)
+      || rawText.match(/[Cc]onfidence[:\s]*(\d+)\s*\/\s*10/)
+      || rawText.match(/(\d+)\s*\/\s*10/);
     if (scoreMatch) result.confidence.score = parseInt(scoreMatch[1], 10);
 
     // Confidence reason
-    const reasonMatch = rawText.match(/[Aa]lasan[:\s]*(.+?)(?:\n|$)/);
+    const reasonMatch = rawText.match(/[Aa]lasan[:\s]*(.+?)(?:\n|$)/)
+      || rawText.match(/[Rr]eason[:\s]*(.+?)(?:\n|$)/);
     if (reasonMatch) result.confidence.reason = reasonMatch[1].trim();
 
     // Angle
     const angleMatch = rawText.match(/[Aa]ngle[:\s]*\[?\s*(Supportif|Disruptor)\s*\]?/i);
     if (angleMatch) result.angle = angleMatch[1];
 
-    // Replies
+    // ── Reply Parsing (robust multi-provider) ──
+    // Step 1: Try to isolate the reply section
     const replySectionMatch = rawText.match(
-      /(?:Lima Opsi Reply|Opsi Reply|opsi reply|Reply)[\s\S]*?\n([\s\S]*?)(?=###\s*4\.|Rekomendasi|$)/i
+      /(?:###\s*3\.?|Opsi Reply|opsi reply|Reply Options)[:\s]*\n([\s\S]*?)(?=###\s*4\.?|\n\s*(?:#{1,3}\s*)?(?:4\.\s*)?[Rr]ekomendasi|$)/i
     );
     const replySection = replySectionMatch ? replySectionMatch[1] : rawText;
 
     let replies = [];
-    const numbered = replySection.matchAll(
-      /(?:^|\n)\s*(?:\*\*)?(?:Opsi\s*)?(\d)[.):\s]*(?:\*\*)?[:\-\s]*([\s\S]*?)(?=\n\s*(?:\*\*)?(?:Opsi\s*)?\d[.):]|\n\s*#{2,}|\n\s*\*?\*?(?:4\.|Rekomendasi)|$)/gi
-    );
+
+    // Step 2: Match numbered items (1. text / 1) text / 1: text)
+    const numberedPattern = /(?:^|\n)\s*(?:\*{0,2})(?:Opsi\s*)?(?:Reply\s*)?(?:Option\s*)?(\d{1,2})\s*[.):\-]\s*(?:\*{0,2})\s*([\s\S]*?)(?=\n\s*(?:\*{0,2})(?:Opsi\s*)?(?:Reply\s*)?(?:Option\s*)?\d{1,2}\s*[.):\-]|\n\s*#{2,}|\n\s*(?:\*{0,2})(?:4\.\s*)?[Rr]ekomendasi|$)/gi;
+    const numbered = replySection.matchAll(numberedPattern);
 
     for (const match of numbered) {
-      const text = match[2]
-        .trim()
-        // Strip quotes
-        .replace(/^["'\u201C\u201D\u2018\u2019`]+|["'\u201C\u201D\u2018\u2019`]+$/g, '')
-        // Strip "Opsi X:" or "Reply X:" prefix
-        .replace(/^(?:Opsi|Reply|Option)\s*\d+[.:)\-\s]*/gi, '')
-        // Strip bold markdown **text** → text
-        .replace(/\*\*(.+?)\*\*/g, '$1')
-        // Strip italic markdown *text* → text
-        .replace(/(?<!\\)\*(.+?)\*/g, '$1')
-        // Strip heading markers at start of lines
-        .replace(/^#{1,4}\s+/gm, '')
-        // Strip horizontal rules (---, ___, ***)
-        .replace(/^[-_*]{3,}$/gm, '')
-        // Replace em-dash with space
-        .replace(/\u2014/g, ', ')
-        // Clean double spaces
-        .replace(/ {2,}/g, ' ')
-        // Clean up leftover blank lines from stripping
-        .replace(/\n{3,}/g, '\n\n')
-        // Fix lone quote/punctuation on its own line
-        .replace(/\n\s*(["'\u201C\u201D\u2018\u2019])\s*$/g, '$1')
-        .replace(/^\s*(["'\u201C\u201D\u2018\u2019])\s*\n/g, '$1')
-        .trim();
+      const text = cleanReplyText(match[2]);
       if (text.length > 0 && text.length < 500) replies.push(text);
     }
 
-    if (replies.length < 3) {
-      const lines = replySection.split(/\n\s*\n/).filter((l) => l.trim().length > 10);
-      replies = lines
-        .slice(0, 10)
-        .map((l) =>
-          l
-            .trim()
-            .replace(/^\d+[.):\s]+/, '')
-            .replace(/^["'\u201C\u201D`]+|["'\u201C\u201D`]+$/g, '')
-            .replace(/^(?:Opsi|Reply|Option)\s*\d+[.:)\-\s]*/gi, '')
-            .replace(/\*\*(.+?)\*\*/g, '$1')
-            .replace(/(?<!\\)\*(.+?)\*/g, '$1')
-            .replace(/^#{1,4}\s+/gm, '')
-            .replace(/^[-_*]{3,}$/gm, '')
-            .replace(/\u2014/g, ', ')
-            .replace(/ {2,}/g, ' ')
-            .replace(/\n{3,}/g, '\n\n')
-            // Fix lone quote on its own line
-            .replace(/\n\s*(["'\u201C\u201D\u2018\u2019])\s*$/g, '$1')
-            .replace(/^\s*(["'\u201C\u201D\u2018\u2019])\s*\n/g, '$1')
-            .trim()
-        )
-        .filter((l) => l.length > 0);
+    // Step 3: Fallback — split by double newline and filter plausible replies
+    if (replies.length < 2) {
+      const fallbackSection = replySectionMatch ? replySectionMatch[1] : extractFallbackSection(rawText);
+      const lines = fallbackSection.split(/\n\s*\n/).filter((l) => l.trim().length > 10);
+      const fallbackReplies = lines
+        .map((l) => cleanReplyText(l.replace(/^\d+[.):\s]+/, '')))
+        .filter((l) => l.length > 5 && l.length < 500 && !isMetaLine(l));
+      if (fallbackReplies.length > replies.length) {
+        replies = fallbackReplies;
+      }
     }
 
     result.replies = replies.slice(0, 10);
 
     // Recommendation
-    const recoMatch = rawText.match(/(?:Rekomendasi|rekomendasi)[:\s]*([\s\S]*?)$/i);
+    const recoMatch = rawText.match(/(?:#{1,3}\s*)?(?:4\.\s*)?(?:Rekomendasi|Recommendation)[:\s]*([\s\S]*?)$/i);
     if (recoMatch) {
       const recoText = recoMatch[1].trim();
-      const pickMatch = recoText.match(/[Oo]psi\s*(\d)/);
+      const pickMatch = recoText.match(/[Oo]psi\s*(\d)/)
+        || recoText.match(/(?:nomor|#|no\.?)\s*(\d)/i)
+        || recoText.match(/\b(\d)\b.*(?:terbaik|best|paling)/i);
       if (pickMatch) result.recommendation.pick = parseInt(pickMatch[1], 10);
 
-      // Capture all techniques mentioned
       const techMatches = [...recoText.matchAll(/(Social Proof|Curiosity Gap|Authority)/gi)];
       if (techMatches.length > 0) {
         result.recommendation.technique = techMatches.map(m => m[1]).join(' + ');
@@ -463,4 +470,42 @@ export function parseResponse(rawText) {
   }
 
   return result;
+}
+
+// ── Helper functions for parsing ──
+
+function cleanReplyText(raw) {
+  return raw
+    .trim()
+    .replace(/^["'\u201C\u201D\u2018\u2019`]+|["'\u201C\u201D\u2018\u2019`]+$/g, '')
+    .replace(/^(?:Opsi|Reply|Option)\s*\d+[.:)\-\s]*/gi, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/(?<!\\)\*(.+?)\*/g, '$1')
+    .replace(/^#{1,4}\s+/gm, '')
+    .replace(/^[-_*]{3,}$/gm, '')
+    .replace(/\u2014/g, ', ')
+    .replace(/ {2,}/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n\s*(["'\u201C\u201D\u2018\u2019])\s*$/g, '$1')
+    .replace(/^\s*(["'\u201C\u201D\u2018\u2019])\s*\n/g, '$1')
+    .trim();
+}
+
+function isMetaLine(text) {
+  return /^(skor|alasan|angle|confidence|rekomendasi|recommendation|supportif|disruptor|teknik|pick)/i.test(text)
+    || /^(###|---|\*\*\*)/i.test(text)
+    || /^\d+\s*\/\s*10/.test(text);
+}
+
+function extractFallbackSection(rawText) {
+  // Try to get text between section 3 and section 4 / recommendation
+  const start = rawText.search(/(?:###\s*3|opsi reply|reply options)/i);
+  const end = rawText.search(/(?:###\s*4|rekomendasi|recommendation)/i);
+  if (start !== -1 && end !== -1 && end > start) {
+    return rawText.substring(start, end);
+  }
+  if (start !== -1) {
+    return rawText.substring(start);
+  }
+  return rawText;
 }
