@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import styles from './App.module.css';
-import { getApiKey, saveApiKey, getLanguage, saveLanguage, getTemperature, saveTemperature, getReplyCount, saveReplyCount, getTheme, saveTheme, generateReply, parseResponse } from './api';
+import { getApiKey, saveApiKey, getLanguage, saveLanguage, getTemperature, saveTemperature, getReplyCount, saveReplyCount, getTheme, saveTheme, getSelectedProviderId, saveSelectedProviderId, getModelForProvider, saveModelForProvider, generateReply, parseResponse } from './api';
+import { getProvider } from './providers/registry';
 import ReplyCard from './components/ReplyCard';
 import MetaBar from './components/MetaBar';
 import SettingsModal from './components/SettingsModal';
@@ -61,7 +62,8 @@ export default function App() {
       return;
     }
 
-    const apiKey = getApiKey();
+    const providerId = getSelectedProviderId();
+    const apiKey = getApiKey(providerId);
     if (!apiKey) {
       setShowSettings(true);
       showToast('Set your API key first');
@@ -78,6 +80,8 @@ export default function App() {
         temperature: getTemperature(),
         replyCount: getReplyCount(),
         theme: getTheme(),
+        providerId: getSelectedProviderId(),
+        model: getModelForProvider(getSelectedProviderId()),
       });
       const parsed = parseResponse(raw);
       setResults(parsed);
@@ -100,7 +104,9 @@ export default function App() {
 
   const handleSaveSettings = useCallback(
     (settings) => {
-      saveApiKey(settings.apiKey);
+      saveSelectedProviderId(settings.providerId);
+      saveApiKey(settings.apiKey, settings.providerId);
+      saveModelForProvider(settings.model, settings.providerId);
       saveLanguage(settings.language);
       saveTemperature(settings.temperature);
       saveReplyCount(settings.replyCount);
@@ -117,7 +123,21 @@ export default function App() {
     <div className={styles.container}>
       {/* Header */}
       <header className={styles.header}>
-        <h1 className={styles.title}>Tweet Reply Generator</h1>
+        <div className={styles.titleRow}>
+          <h1 className={styles.title}>Tweet Reply Generator</h1>
+          {(() => {
+            const p = getProvider(getSelectedProviderId());
+            const m = getModelForProvider(p.id);
+            const label = p.models.length > 1
+              ? p.models.find(mod => mod.value === m)?.label || m
+              : p.name;
+            return (
+              <span className={styles.providerBadge}>
+                {label}
+              </span>
+            );
+          })()}
+        </div>
         <div className={styles.headerActions}>
           {installPrompt && (
             <button
@@ -276,7 +296,9 @@ export default function App() {
         onClose={() => setShowSettings(false)}
         onSave={handleSaveSettings}
         currentSettings={{
-          apiKey: getApiKey(),
+          providerId: getSelectedProviderId(),
+          apiKey: getApiKey(getSelectedProviderId()),
+          model: getModelForProvider(getSelectedProviderId()),
           language: getLanguage(),
           temperature: getTemperature(),
           replyCount: getReplyCount(),

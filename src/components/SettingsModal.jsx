@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import styles from './SettingsModal.module.css'
+import { getApiKey } from '../api'
+import { getProvider, getProviderList } from '../providers/registry'
 
 const LANGUAGES = [
   { value: 'auto', label: 'Auto (Detect)' },
@@ -9,30 +11,49 @@ const LANGUAGES = [
 ]
 
 const THEMES = [
-  { value: 'santai', emoji: '😎', label: 'Santai', desc: 'Ringan, relatable, kayak ngobrol sama teman' },
-  { value: 'tajam', emoji: '🔥', label: 'Tajam', desc: 'Bold, sarkasme cerdas, edgy tapi elegan' },
-  { value: 'cerdas', emoji: '🧠', label: 'Cerdas', desc: 'Berbobot, insightful, perspektif baru' },
+  { value: 'santai', emoji: '😎', label: 'Santai' },
+  { value: 'tajam', emoji: '🔥', label: 'Tajam' },
+  { value: 'cerdas', emoji: '🧠', label: 'Cerdas' },
 ]
 
 export default function SettingsModal({ isOpen, onClose, onSave, currentSettings }) {
+  const [providerId, setProviderId] = useState('deepseek')
   const [apiKey, setApiKey] = useState('')
+  const [model, setModel] = useState('')
   const [language, setLanguage] = useState('auto')
   const [temperature, setTemperature] = useState(0.7)
   const [replyCount, setReplyCount] = useState(5)
   const [theme, setTheme] = useState('santai')
   const [langOpen, setLangOpen] = useState(false)
+  const [modelOpen, setModelOpen] = useState(false)
   const dropdownRef = useRef(null)
+  const modelDropdownRef = useRef(null)
+
+  const provider = getProvider(providerId)
+  const providers = getProviderList()
 
   useEffect(() => {
     if (isOpen) {
+      setProviderId(currentSettings.providerId || 'deepseek')
       setApiKey(currentSettings.apiKey || '')
+      setModel(currentSettings.model || '')
       setLanguage(currentSettings.language || 'auto')
       setTemperature(currentSettings.temperature ?? 0.7)
       setReplyCount(currentSettings.replyCount ?? 5)
       setTheme(currentSettings.theme || 'santai')
       setLangOpen(false)
+      setModelOpen(false)
     }
   }, [isOpen, currentSettings])
+
+  // When provider changes, load its API key and default model
+  function handleProviderChange(newProviderId) {
+    setProviderId(newProviderId)
+    const newProvider = getProvider(newProviderId)
+    setApiKey(getApiKey(newProviderId))
+    setModel(newProvider.defaultModel)
+    setModelOpen(false)
+  }
 
   useEffect(() => {
     if (!isOpen) return
@@ -54,9 +75,22 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [langOpen])
 
+  useEffect(() => {
+    if (!modelOpen) return
+    function handleClickOutside(e) {
+      if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target)) {
+        setModelOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [modelOpen])
+
   function handleSave() {
     onSave({
+      providerId,
       apiKey: apiKey.trim(),
+      model,
       language,
       temperature,
       replyCount,
@@ -71,6 +105,24 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
     } catch {
       // silently ignore clipboard errors
     }
+  }
+
+  function renderHelpStep(step, index) {
+    if (typeof step === 'string') {
+      return <li key={index}>{step}</li>
+    }
+    return (
+      <li key={index}>
+        {step.text}
+        {step.bold && <strong>{step.bold}</strong>}
+        {step.suffix && step.suffix}
+        {step.link && (
+          <a href={step.link.url} target="_blank" rel="noopener noreferrer" className={styles.link}>
+            {step.link.label}
+          </a>
+        )}
+      </li>
+    )
   }
 
   if (!isOpen) return null
@@ -88,6 +140,64 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
           </button>
         </div>
 
+        {/* AI Provider */}
+        <div className={styles.section}>
+          <label className={styles.label}>AI Provider</label>
+          <div className={styles.providerGrid}>
+            {providers.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className={`${styles.providerCard} ${providerId === p.id ? styles.providerActive : ''}`}
+                onClick={() => handleProviderChange(p.id)}
+              >
+                <img className={styles.providerIcon} src={`/${p.id}.png`} alt={p.name} />
+                <span className={styles.providerName}>{p.name}</span>
+              </button>
+            ))}
+          </div>
+          <p className={styles.hint}>Pilih AI yang akan digunakan untuk generate reply</p>
+        </div>
+
+        {/* Model Selector (only for multi-model providers) */}
+        {provider.models.length > 1 && (
+          <div className={styles.section}>
+            <label className={styles.label}>Model</label>
+            <div className={styles.customSelect} ref={modelDropdownRef}>
+              <button
+                type="button"
+                className={`${styles.selectTrigger} ${modelOpen ? styles.selectOpen : ''}`}
+                onClick={() => setModelOpen(!modelOpen)}
+              >
+                <span>{provider.models.find((m) => m.value === model)?.label || model}</span>
+                <svg className={styles.selectChevron} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {modelOpen && (
+                <div className={styles.selectDropdown}>
+                  {provider.models.map((m) => (
+                    <button
+                      key={m.value}
+                      type="button"
+                      className={`${styles.selectOption} ${model === m.value ? styles.optionSelected : ''}`}
+                      onClick={() => { setModel(m.value); setModelOpen(false) }}
+                    >
+                      <span>{m.label}</span>
+                      {model === m.value && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <p className={styles.hint}>Model AI yang akan digunakan</p>
+          </div>
+        )}
+
         {/* API Key */}
         <div className={styles.section}>
           <label className={styles.label}>API Key</label>
@@ -95,7 +205,7 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
             <input
               type="password"
               className={styles.input}
-              placeholder="sk-..."
+              placeholder={provider.apiKeyPlaceholder}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
@@ -119,11 +229,7 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
           <div className={styles.howTo}>
             <div className={styles.howToTitle}>Cara mendapatkan API Key</div>
             <ol className={styles.steps}>
-              <li>Buka <a href="https://platform.deepseek.com" target="_blank" rel="noopener noreferrer" className={styles.link}>platform.deepseek.com</a></li>
-              <li>Daftar atau login ke akun DeepSeek</li>
-              <li>Buka menu <strong>API Keys</strong></li>
-              <li>Klik <strong>Create New Key</strong>, copy key-nya</li>
-              <li>Paste key di atas, lalu klik Save</li>
+              {provider.helpSteps.map((step, i) => renderHelpStep(step, i))}
             </ol>
           </div>
         </div>
@@ -178,7 +284,6 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
               >
                 <span className={styles.themeEmoji}>{t.emoji}</span>
                 <span className={styles.themeLabel}>{t.label}</span>
-                <span className={styles.themeDesc}>{t.desc}</span>
               </button>
             ))}
           </div>
@@ -225,14 +330,14 @@ export default function SettingsModal({ isOpen, onClose, onSave, currentSettings
             <div className={styles.sliderTrack}>
               <div
                 className={styles.sliderFill}
-                style={{ width: `${temperature * 100}%` }}
+                style={{ width: `${(temperature / 2) * 100}%` }}
               />
             </div>
             <input
               type="range"
               className={styles.slider}
               min="0"
-              max="1"
+              max="2"
               step="0.1"
               value={temperature}
               onChange={(e) => setTemperature(parseFloat(e.target.value))}

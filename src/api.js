@@ -197,19 +197,55 @@ Struktur mental (JANGAN tulis label ini di output):
 - Pilih 1 opsi terbaik + alasan singkat.
 - Sebutkan teknik yang dipakai: Social Proof, Curiosity Gap, atau Authority.`;
 
+import { getProvider, getDefaultProvider } from './providers/registry.js';
+
 export const CONFIG = {
-  API_URL: 'https://api.deepseek.com/v1/chat/completions',
-  MODEL: 'deepseek-chat',
   TEMPERATURE: 0.7,
   MAX_TOKENS: 2048,
 };
 
-export function getApiKey() {
-  return localStorage.getItem('deepseek_api_key') || '';
+// ── Provider Selection ──
+
+export function getSelectedProviderId() {
+  return localStorage.getItem('selected_provider') || getDefaultProvider().id;
 }
 
-export function saveApiKey(key) {
-  localStorage.setItem('deepseek_api_key', key.trim());
+export function saveSelectedProviderId(providerId) {
+  localStorage.setItem('selected_provider', providerId);
+}
+
+// ── API Key (per-provider) ──
+
+export function getApiKey(providerId) {
+  const id = providerId || getSelectedProviderId();
+  // Migrate old key format for backwards compatibility
+  if (id === 'deepseek') {
+    const oldKey = localStorage.getItem('deepseek_api_key');
+    if (oldKey && !localStorage.getItem('api_key_deepseek')) {
+      localStorage.setItem('api_key_deepseek', oldKey);
+    }
+  }
+  return localStorage.getItem(`api_key_${id}`) || '';
+}
+
+export function saveApiKey(key, providerId) {
+  const id = providerId || getSelectedProviderId();
+  localStorage.setItem(`api_key_${id}`, key.trim());
+}
+
+// ── Model Selection (per-provider) ──
+
+export function getModelForProvider(providerId) {
+  const id = providerId || getSelectedProviderId();
+  const saved = localStorage.getItem(`model_${id}`);
+  if (saved) return saved;
+  const provider = getProvider(id);
+  return provider.defaultModel;
+}
+
+export function saveModelForProvider(model, providerId) {
+  const id = providerId || getSelectedProviderId();
+  localStorage.setItem(`model_${id}`, model);
 }
 
 export function getLanguage() {
@@ -276,7 +312,7 @@ Gunakan tone berbobot yang menambah perspektif baru.
 };
 
 export async function generateReply(tweetText, apiKey, options = {}) {
-  const { language = 'auto', temperature = 0.7, replyCount = 5, theme = 'santai' } = options;
+  const { language = 'auto', temperature = 0.7, replyCount = 5, theme = 'santai', providerId, model } = options;
 
   let userMessage = tweetText;
   const overrides = [];
@@ -298,47 +334,17 @@ export async function generateReply(tweetText, apiKey, options = {}) {
     userMessage += '\n\n---\n[OVERRIDE SETTINGS]\n' + overrides.join('\n');
   }
 
-  const response = await fetch(CONFIG.API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: CONFIG.MODEL,
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      temperature,
-      max_tokens: CONFIG.MAX_TOKENS,
-      stream: false,
-    }),
+  // Delegate to the selected provider
+  const provider = getProvider(providerId || getSelectedProviderId());
+  const selectedModel = model || getModelForProvider(provider.id);
+
+  return provider.generateReply(tweetText, apiKey, {
+    temperature,
+    maxTokens: CONFIG.MAX_TOKENS,
+    model: selectedModel,
+    systemPrompt: SYSTEM_PROMPT,
+    userMessage,
   });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    const msg = errorData.error?.message || 'Something went wrong.';
-
-    if (response.status === 401) {
-      throw new Error('Invalid API key. Check your key in settings.');
-    } else if (response.status === 429) {
-      throw new Error('Rate limited. Please wait a moment and try again.');
-    } else if (response.status === 402) {
-      throw new Error('Insufficient balance on your DeepSeek account.');
-    } else {
-      throw new Error(`API Error (${response.status}): ${msg}`);
-    }
-  }
-
-  const data = await response.json();
-  const rawContent = data.choices?.[0]?.message?.content || '';
-
-  if (!rawContent) {
-    throw new Error('The API returned an empty response. Try a different tweet.');
-  }
-
-  return rawContent;
 }
 
 export function parseResponse(rawText) {

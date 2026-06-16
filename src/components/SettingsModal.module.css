@@ -100,6 +100,72 @@
   margin-bottom: 20px;
 }
 
+/* ── Provider Cards ── */
+.providerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.providerCard {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition:
+    border-color var(--duration-normal) var(--ease-out),
+    background var(--duration-normal) var(--ease-out),
+    box-shadow var(--duration-normal) var(--ease-out),
+    transform var(--duration-fast) var(--ease-spring);
+}
+
+.providerCard:hover {
+  border-color: var(--border-card-hover);
+  background: var(--bg-elevated);
+}
+
+.providerCard:active {
+  transform: scale(0.97);
+}
+
+.providerActive {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  box-shadow: 0 0 0 3px var(--accent-dim), 0 0 20px rgba(79, 70, 229, 0.08);
+}
+
+.providerActive:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-dim);
+}
+
+.providerIcon {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.providerName {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.providerActive .providerName {
+  color: var(--accent-hover);
+}
+
+
+
 .label {
   display: block;
   font-size: 0.82rem;
@@ -718,29 +784,40 @@
   }
 
   .themeGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, 1fr);
     gap: 6px;
   }
 
   .themeCard {
-    flex-direction: row;
-    padding: 10px 14px;
-    gap: 10px;
-    text-align: left;
+    padding: 10px 8px;
+    gap: 4px;
   }
 
   .themeEmoji {
-    font-size: 1.15rem;
+    font-size: 1.1rem;
     flex-shrink: 0;
   }
 
   .themeLabel {
-    font-size: 0.8rem;
-    min-width: 50px;
-    flex-shrink: 0;
+    font-size: 0.78rem;
   }
 
-  .themeDesc {
-    font-size: 0.7rem;
+  .providerGrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .providerCard {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .providerIcon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .providerName {
+    font-size: 0.8rem;
   }
 }
